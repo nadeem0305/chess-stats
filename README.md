@@ -1,10 +1,12 @@
 # chess-stats
 
+**Live:** https://chess-stats-chi.vercel.app
+
 See how you actually do on chess.com: win rate overall, with white vs black, per time control,
 and per opening. Uses the public [chess.com API](https://www.chess.com/news/view/published-data-api), no key needed.
 
 ```
-go install github.com/nadeem0305/chess-stats@latest
+go install github.com/nadeem0305/chess-stats/cmd/chess-stats@latest
 chess-stats nadeem0305
 chess-stats -months 6 -openings 15 nadeem0305
 ```
