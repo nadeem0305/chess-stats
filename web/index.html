@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chess-stats</title>
+<style>
+  :root { --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --accent: #0f766e; --bar: #d6d3d1; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #1c1917; --fg: #f5f5f4; --muted: #a8a29e; --line: #44403c; --accent: #2dd4bf; --bar: #44403c; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+  main { max-width: 40rem; margin: 0 auto; padding: 3rem 1rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1rem; margin: 2rem 0 .5rem; color: var(--muted); font-weight: 500; }
+  .sub, footer { color: var(--muted); }
+  form { display: flex; gap: .5rem; margin-top: 2rem; flex-wrap: wrap; }
+  input, select, button { font: inherit; color: inherit; background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: .5rem .6rem; }
+  input { flex: 1; min-width: 10rem; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .big { font-size: 2.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  td { padding: .3rem .5rem .3rem 0; border-bottom: 1px solid var(--line); }
+  td.n { text-align: right; white-space: nowrap; color: var(--muted); }
+  .bar { height: .4rem; background: var(--bar); border-radius: 1rem; overflow: hidden; width: 4rem; }
+  .bar span { display: block; height: 100%; background: var(--accent); }
+  @media (max-width: 30rem) { td.games { display: none; } }
+  footer { margin-top: 3rem; font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>chess.com stats</h1>
+  <p class="sub">Win rate by colour, time control and opening, from a player's recent games.</p>
+  <form id="f">
+    <input id="user" aria-label="chess.com username" placeholder="chess.com username" value="nadeem0305" required>
+    <select id="months" aria-label="Period">
+      <option value="1">Last month</option><option value="3" selected>Last 3 months</option><option value="6">Last 6 months</option>
+    </select>
+    <button>Show</button>
+  </form>
+  <div id="out" aria-live="polite"></div>
+  <footer>
+    <p>Data from the public chess.com API. Variants like Chess960 are skipped.</p>
+    <p><a href="https://github.com/nadeem0305/chess-stats">Source</a> · also available as a Go CLI</p>
+  </footer>
+</main>
+<script>
+const out = document.getElementById("out");
+const esc = s => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
+const total = r => r.wins + r.losses + r.draws;
+const pct = r => Math.round(100 * r.wins / Math.max(total(r), 1));
+const table = (title, rows) => `<h2>${title}</h2><table>${rows.map(r => `<tr>
+  <td>${esc(r.name)}</td>
+  <td class="n games">${total(r)} games · ${r.wins}W ${r.losses}L ${r.draws}D</td>
+  <td class="n">${pct(r)}%</td>
+  <td><div class="bar" aria-hidden="true"><span style="width:${pct(r)}%"></span></div></td></tr>`).join("")}</table>`;
+
+async function run(e) {
+  e?.preventDefault();
+  out.textContent = "Loading games…";
+  try {
+    const q = new URLSearchParams({ user: document.getElementById("user").value.trim(), months: document.getElementById("months").value });
+    const res = await fetch("/api/stats?" + q);
+    if (!res.ok) throw new Error((await res.text()).trim());
+    const s = await res.json();
+    const n = total(s.overall);
+    out.innerHTML = n === 0 ? `<p>No standard games in the last ${s.months} month(s).</p>` :
+      `<h2>Overall, last ${s.months} month(s)</h2><div class="big">${pct(s.overall)}% won</div>
+       <div class="sub">${n} games · ${s.overall.wins}W ${s.overall.losses}L ${s.overall.draws}D</div>` +
+      table("Colour", s.colour) + table("Time control", s.timeClass) + table("Top openings", s.openings);
+  } catch (err) {
+    out.textContent = "Couldn't load stats: " + err.message;
+  }
+}
+document.getElementById("f").onsubmit = run;
+run();
+</script>
+</body>
+</html>
